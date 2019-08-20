@@ -23,31 +23,38 @@ pardot_campaigns <- function() {
 }
 
 pardot_campaigns.api_call <- function() {
-  request_url <- paste0("https://pi.pardot.com/api/campaign/version/3/do/query?api_key=",api_key,"&user_key=",Sys.getenv("PARDOT_USER_KEY"),"&output=bulk&format=json&sort_by=id&sort_order=ascending")
-  resp <- GET(request_url)
+  request_body  <- list(api_key = api_key,
+                     user_key = Sys.getenv("PARDOT_USER_KEY"),
+                     output = 'bulk',
+                     format = 'json',
+                     sort_by = 'id',
+                     sort_order = 'ascending'
+                     )
+  
+  
+  request_url <- 'https://pi.pardot.com/api/campaign/version/3/do/query'
+  resp <- POST(request_url, body = request_body)
 
   if ( resp$status != 200 ) {
     pardot_client.authenticate()
-    resp <- GET(request_url, content_type_json())
-    jsonresp <- fromJSON(request_url)
+    resp <- POST(request_url, body = request_body)
   }
-
-  raw_df <- pardot_client.get_data_frame(request_url)
+  
+  resp_body <- content(resp, as = "text", encoding = 'UTF-8')
+  raw_df <- pardot_client.get_data_frame(resp_body)
   lowest_id <- tail(raw_df, 1)$result.campaign.id
   polished_df <- rbind(raw_df)
 
   while (!nrow(raw_df) < 200) {
     print(paste0("Pulling data from low ID", lowest_id))
-    loop_url <- pardot_campaigns.iterative_request_url(request_url, lowest_id)
-    raw_df <- pardot_client.get_data_frame(loop_url)
+    request_body[['id_greater_than']] = lowest_id
+    loop_resp <- POST(request_url, body = request_body)
+    loop_resp_body = content(loop_resp, as = 'text', encoding = 'UTF-8')
+    raw_df <- pardot_client.get_data_frame(loop_resp_body)
     lowest_id <- tail(raw_df, 1)$result.campaign.id
 
     polished_df <- rbind(polished_df, raw_df)
   }
 
   return(polished_df)
-}
-
-pardot_campaigns.iterative_request_url <- function(requestUrl, theId) {
-  iterative_request_url <- paste0(requestUrl,"&id_greater_than=",theId,"&sort_by=id&sort_order=ascending")
 }

@@ -58,8 +58,8 @@ pardot_client.api_call <- function(request_url) {
 }
 
 
-pardot_client.get_data_frame <- function(theUrl) {
-  jsonResponse <- fromJSON(theUrl)
+pardot_client.get_data_frame <- function(data) {
+  jsonResponse <- fromJSON(data)
   d <- as.data.frame(jsonResponse[2])
   return(d)
 }
@@ -75,6 +75,12 @@ pardot_client.build_url <- function(param_list) {
 
   request_url <- paste0("https://pi.pardot.com/api/",api_object,"/version/3/do/",api_operator,api_identifier_field,api_identifier,"?api_key=",api_key,"&user_key=",Sys.getenv("PARDOT_USER_KEY"),"&output=bulk&format=json")
   return(request_url)
+}
+
+pardot_client.iterative_request_options <- function(currentOptions, theDate) {
+  theDate <- gsub(' ', 'T', theDate)
+  currentOptions[['created_after']] = theDate
+  iterative_request_options <- currentOptions
 }
 
 pardot_client.iterative_request_url <- function(requestUrl, theDate) {
